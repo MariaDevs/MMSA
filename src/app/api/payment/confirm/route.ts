@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic";
+
 // Kept for manual activation fallback (e.g. if ITN delayed)
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";

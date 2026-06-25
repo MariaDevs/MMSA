@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
+import { signIn } from "next-auth/react";
 import { Check, Car, ArrowRight, AlertCircle } from "lucide-react";
 import PaymentForm from "@/components/PaymentForm";
 
@@ -56,6 +57,8 @@ export default function DealerRegisterClient() {
   async function submitRegistration() {
     setLoading(true);
     setApiError("");
+
+    // Step 1: create account
     const res = await fetch("/api/auth/register", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -66,10 +69,19 @@ export default function DealerRegisterClient() {
         description: form.description, packageId: form.packageId,
       }),
     });
-    setLoading(false);
     const data = await res.json();
-    if (!res.ok) { setApiError(data.error ?? "Registration failed"); return; }
+    if (!res.ok) { setApiError(data.error ?? "Registration failed"); setLoading(false); return; }
     setDealerId(data.dealerId);
+
+    // Step 2: auto-login so session exists for payment API
+    const loginRes = await signIn("credentials", {
+      email: form.email,
+      password: form.password,
+      redirect: false,
+    });
+    setLoading(false);
+    if (loginRes?.error) { setApiError("Account created but login failed. Please login manually."); return; }
+
     setStep(4);
   }
 
