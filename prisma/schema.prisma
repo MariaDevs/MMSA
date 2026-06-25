@@ -1,0 +1,78 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  password  String
+  role      String   @default("DEALER")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  dealer    Dealer?
+}
+
+model Dealer {
+  id           String        @id @default(cuid())
+  userId       String        @unique
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  businessName String
+  contactName  String
+  phone        String
+  location     String
+  province     String
+  description  String?
+  status       String        @default("PENDING")
+  blocked      Boolean       @default(false)
+  packageId    String?
+  package      Package?      @relation(fields: [packageId], references: [id])
+  subscription Subscription?
+  vehicles     Vehicle[]
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+}
+
+model Package {
+  id           String   @id @default(cuid())
+  name         String
+  vehicleLimit Int
+  durationDays Int
+  price        Float
+  description  String
+  dealers      Dealer[]
+}
+
+model Subscription {
+  id        String   @id @default(cuid())
+  dealerId  String   @unique
+  dealer    Dealer   @relation(fields: [dealerId], references: [id], onDelete: Cascade)
+  startDate DateTime @default(now())
+  endDate   DateTime
+  active    Boolean  @default(true)
+  paymentId String?
+}
+
+model Vehicle {
+  id           String   @id @default(cuid())
+  dealerId     String
+  dealer       Dealer   @relation(fields: [dealerId], references: [id], onDelete: Cascade)
+  make         String
+  model        String
+  year         Int
+  price        Float
+  mileage      Int
+  transmission String
+  fuelType     String
+  bodyType     String
+  color        String
+  description  String
+  status       String   @default("PENDING")
+  featured     Boolean  @default(false)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
