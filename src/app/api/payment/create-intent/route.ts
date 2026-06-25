@@ -2,9 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/db";
-import Stripe from "stripe";
-
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, { apiVersion: "2024-04-10" });
+import { buildPayFastData, getPayFastUrl } from "@/lib/payfast";
 
 export async function POST(req: NextRequest) {
   const session = await getServerSession(authOptions);
@@ -15,17 +13,35 @@ export async function POST(req: NextRequest) {
 
   const { packageId } = await req.json();
 
-  const pkg = await prisma.package.findUnique({ where: { id: packageId } });
+  const [pkg, dealer] = await Promise.all([
+    prisma.package.findUnique({ where: { id: packageId } }),
+    prisma.dealer.findUnique({
+      where: { id: dealerId },
+      include: { user: { select: { email: true } } },
+    }),
+  ]);
+
   if (!pkg) return NextResponse.json({ error: "Package not found" }, { status: 404 });
+  if (!dealer) return NextResponse.json({ error: "Dealer not found" }, { status: 404 });
 
-  const amountInCents = Math.round(pkg.price * 100);
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
 
-  const paymentIntent = await stripe.paymentIntents.create({
-    amount: amountInCents,
-    currency: "zar",
-    metadata: { dealerId, packageId },
-    description: `MotorsMarket SA — ${pkg.name} (${pkg.vehicleLimit} vehicles / 30 days)`,
+  const pfData = buildPayFastData({
+    dealerId,
+    packageId,
+    packageName: pkg.name,
+    amount: pkg.price,
+    dealerEmail: dealer.user.email,
+    dealerName: dealer.businessName,
+    returnUrl: `${appUrl}/payment/success`,
+    cancelUrl: `${appUrl}/payment/cancel`,
+    notifyUrl: `${appUrl}/api/payment/notify`,
   });
 
-  return NextResponse.json({ clientSecret: paymentIntent.client_secret, amount: pkg.price, packageName: pkg.name });
+  return NextResponse.json({
+    payFastUrl: getPayFastUrl(),
+    data: pfData,
+    amount: pkg.price,
+    packageName: pkg.name,
+  });
 }

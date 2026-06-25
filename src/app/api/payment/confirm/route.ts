@@ -1,3 +1,4 @@
+// Kept for manual activation fallback (e.g. if ITN delayed)
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
@@ -8,7 +9,7 @@ export async function POST(req: NextRequest) {
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const dealerId = (session.user as any).dealerId;
-  const { paymentIntentId, packageId } = await req.json();
+  const { packageId, paymentId } = await req.json();
 
   const endDate = new Date();
   endDate.setDate(endDate.getDate() + 30);
@@ -20,8 +21,8 @@ export async function POST(req: NextRequest) {
       status: "APPROVED",
       subscription: {
         upsert: {
-          create: { endDate, active: true, paymentId: paymentIntentId },
-          update: { endDate, active: true, paymentId: paymentIntentId },
+          create: { endDate, active: true, paymentId },
+          update: { endDate, active: true, paymentId },
         },
       },
     },
